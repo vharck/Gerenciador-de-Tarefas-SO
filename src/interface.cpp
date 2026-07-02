@@ -128,7 +128,7 @@ bool Interface::drawSimulation()
 			if (event.clock > currentStep)
 				continue;
 			unsigned int x = 30 * event.clock - scrollX + (event.t ? -10 : 10);
-			unsigned int y = (screenHeight - 100) - 30 * (event.t ? event.t->getId() - 1 : cpu->getEvents()[event.id - 1].t->getId() - 1) + scrollY;
+			unsigned int y = (screenHeight - 70) - 30 * (event.t ? event.t->getId() : cpu->getEvents()[event.id - 1].t->getId()) - scrollY;
 			if (x + 30 < 20 || x > screenWidth - 10 || y + 30 < 90 || y > screenHeight - 70)
 				continue;
 			DrawCircle(x + 15, y + 15, 10, event.t ? GREEN : RED);
@@ -254,6 +254,38 @@ void Interface::drawGantt()
             }
         }
     }
+	for (const Tarefa* t : tarefas)
+	{
+		std::vector<Tarefa::Event> events = t->getEvents();
+		for (size_t i = 0; i < events.size(); i++)
+		{
+			Tarefa::Event ev = events[i];
+			if (ev.state == Tarefa::TaskState::Finished) break;
+			if ((events.size() > i + 2 && events[i + 1].begin < currentStep))
+			{
+				ev.end = events[i + 1].begin;
+				if (ev.begin == ev.end)
+				{
+					events.erase(events.begin() + i);
+					i--;
+					continue;
+				}
+			}
+			unsigned int x = 20 + 30 * ev.begin;
+			unsigned int y = (screenHeight - 70) + 30 * (t->getId());
+			unsigned int width = ev.begin == ev.end ? currentStep - ev.begin : ev.end - ev.begin;
+			if (x + width * 30 < 20 || x > screenWidth - 10 || y + 30 < 90 || y > screenHeight - 70)
+				continue;
+			Color color = WHITE;
+			if (ev.state == Tarefa::TaskState::Executing) color = t->getColor();
+			if (drawTask(t->getPrioridade(), x, y, width, color))
+			{
+				selectedTask = const_cast<Tarefa*>(t);
+				currentState = InterfaceState::Paused;
+				return;
+			}
+		}
+	}
 }
 
 // desenha um campo de texto, onde o usuário pode clicar para selecionar e digitar um valor, o id é usado para identificar qual campo está selecionado
@@ -338,8 +370,8 @@ void Interface::drawTasks()
 	bool removed = false;
 	for (size_t i = 0; i < tasks.size(); i++)
 	{
-		unsigned int x = 20 + 30 * tasks[i]->getTempoIngresso();
-		unsigned int y = (screenHeight - 100) - 30 * i;
+		unsigned int x = 20 + 30 * tasks[i]->getTempoIngresso() - scrollX;
+		unsigned int y = (screenHeight - 100) - 30 * i + scrollY;
 		if (drawTask(tasks[i]->getPrioridade(), x, y, tasks[i]->getTempoTotal(), tasks[i]->getColor()) && !removed)
 		{
 			delete tasks[i];
@@ -453,6 +485,12 @@ void Interface::inputHandler()
         scrollX = std::min(scrollX, (unsigned) std::max(maxScrollX, 0));
         scrollY = std::min(scrollY, (unsigned) std::max(maxScrollY, 0));
         std::cout << "ScrollX: " << scrollX << ", ScrollY: " << scrollY << std::endl;
+
+		int maxScrollX = Execucao::getInstance()->getRelogio() * 30 - screenWidth - 30;
+		int maxScrollY = (tasks.size()) * 30 - screenHeight - 160;
+		scrollX = std::min(scrollX, (unsigned) std::max(maxScrollX, 0));
+		scrollY = std::min(scrollY, (unsigned) std::max(maxScrollY, 0));
+		std::cout << "ScrollX: " << scrollX << ", ScrollY: " << scrollY << std::endl;
 	}
 }
 
