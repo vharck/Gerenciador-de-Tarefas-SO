@@ -12,3 +12,6 @@ Makefile
 raylib.dll
 *.dll
 raylib.dll
+raylib.dll
+Makefile
+main.exe
