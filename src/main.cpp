@@ -41,11 +41,6 @@ vector<Tarefa*> pega_tarefas(const string& caminho_arquivo) {
 		tarefas.push_back(t2);
 		tarefas.push_back(t3);
 		tarefas.push_back(t4);
-
-		for (size_t i = 5; i < 60; i++) {
-			tarefas.push_back(new Tarefa(i, {134, 206, 203, 255}, rand() % 10, rand() % 10 + 1, rand() % 5 + 1));
-		}
-
 		return tarefas;
 	}
 	cout << ">> Arquivo aberto com sucesso: " << caminho_arquivo << endl;
@@ -228,6 +223,10 @@ int main()
 	
 	interface.setTasks(pega_tarefas(caminho_arquivo));
 	cout << ">> Tarefas definidas na interface" << endl;
+	for (Tarefa* task : interface.getTasks()) 
+	{
+		cout << "Tarefa ID: " << task->getId() << endl;
+	}
 
 	while (!WindowShouldClose())
 	{

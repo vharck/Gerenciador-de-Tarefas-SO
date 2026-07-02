@@ -26,14 +26,14 @@ void CPU::setTarefa(Tarefa *nova_tarefa)
 {
     this->t = nova_tarefa;
     this->ocupado = (nova_tarefa != nullptr);
-    events.push_back({id, Execucao::getInstance()->getRelogio(), nova_tarefa});
+    events.push_back({(unsigned int) events.size() + 1, Execucao::getInstance()->getRelogio(), nova_tarefa});
 }
 
 void CPU::liberarCPU()
 {
     this->t = nullptr;
     this->ocupado = false;
-    events.push_back({id, Execucao::getInstance()->getRelogio(), nullptr});
+    events.push_back({(unsigned int) events.size() + 1, Execucao::getInstance()->getRelogio(), nullptr});
 }
 
 void CPU::unidadeDesligado()

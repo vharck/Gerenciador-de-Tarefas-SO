@@ -81,6 +81,7 @@ namespace ProjetoSO
 
 		std::string getSimTypeText(SimulationType type) const;
 
+		std::vector<Tarefa*> getTasks() const { return tasks; }
 		void setTasks(const std::vector<Tarefa *> &newTasks) { tasks = newTasks; }
 		void setQuantum(unsigned int q) { snprintf(inputQuantum, sizeof(inputQuantum), "%d", q); }
 		void setCPUCount(unsigned int c) { snprintf(inputCPUcount, sizeof(inputCPUcount), "%d", c); }

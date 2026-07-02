@@ -3,6 +3,7 @@
 #include <iostream>
 #include <algorithm>
 #include "../include/execucao.hpp"
+#include "../include/escalonador.hpp"
 
 using namespace ProjetoSO;
 
@@ -125,15 +126,20 @@ bool Interface::drawSimulation()
 	{
 		for (CPU::Event event : cpu->getEvents())
 		{
-			if (event.clock > currentStep)
+			if (event.clock >= currentStep)
+				continue;
+			if (!event.t)
+				if (event.id == 1 || !cpu->getEvents()[event.id - 1].t)
+					continue;
+			if (cpu->getEvents().size() > event.id && cpu->getEvents()[event.id].clock == event.clock)
 				continue;
 			unsigned int x = 30 * event.clock - scrollX + (event.t ? -10 : 10);
 			unsigned int y = (screenHeight - 70) - 30 * (event.t ? event.t->getId() : cpu->getEvents()[event.id - 1].t->getId()) - scrollY;
 			if (x + 30 < 20 || x > screenWidth - 10 || y + 30 < 90 || y > screenHeight - 70)
 				continue;
-			DrawCircle(x + 15, y + 15, 10, event.t ? GREEN : RED);
-			DrawCircleLines(x + 15, y + 15, 10, BLACK);
-			DrawText(TextFormat("%d", cpu->getId()), x, y, 10, DARKGRAY);
+			DrawRectangle(x + 30, y + 20, 10, 10, event.t ? GREEN : RED);
+			DrawRectangleLines(x + 30, y + 20, 10, 10, BLACK);
+			DrawText(TextFormat("%d", cpu->getId()), x + 33, y + 21, 10, BLACK);
 		}
 	}
 
@@ -201,51 +207,41 @@ void Interface::drawGantt()
         for (size_t i = 0; i < events.size(); i++)
         {
             Tarefa::Event ev = events[i];
-            if (ev.state == Tarefa::TaskState::Finished) break;
-            if ((events.size() > i + 2 && events[i + 1].begin < currentStep))
-            {
-                ev.end = events[i + 1].begin;
-                if (ev.begin == ev.end)
-                {
-                    events.erase(events.begin() + i);
-                    i--;
-                    continue;
-                }
-            }
+			if (ev.begin > currentStep) continue;
+			if (ev.begin == ev.end && events.size() > i + 1 && events[i + 1].begin)
+			{
+				if (ev.state != Tarefa::TaskState::Idle && ev.state != Tarefa::TaskState::Finished)
+				ev.end = events[i + 1].begin;
+			}
             unsigned int x = 20 + 30 * ev.begin - scrollX;
             unsigned int y = (screenHeight - 70) - scrollY - 30 * (t->getId());
-            unsigned int width = ev.begin == ev.end ? currentStep - ev.begin : ev.end - ev.begin;
-            
-            if (x + width * 30 < 20 || x > screenWidth - 10 || y + 30 < 90 || y > screenHeight - 70)
-                continue;
+            unsigned int width = ev.end > currentStep ? currentStep - ev.begin : ev.end - ev.begin;
+			if (ev.begin == currentStep) width = 1;
+			if (width == 0) continue;
                 
-            // 1. Define a cor base do fundo dependendo do estado
             Color color;
             if (ev.state == Tarefa::TaskState::Executing) color = t->getColor();
             else if (ev.state == Tarefa::TaskState::BlockedIO) color = PURPLE;    // Fundo para E/S
             else if (ev.state == Tarefa::TaskState::BlockedMutex) color = ORANGE; // Fundo para Mutex
-            else if (ev.state == Tarefa::TaskState::Ready) color = WHITE;          // Fundo para Pronto (opcional, para visualização)
+            else if (ev.state == Tarefa::TaskState::Ready) color = WHITE;         // Fundo para Pronto
+            unsigned int priority = t->getPrioridade();
+			if (simulationType == SimulationType::PRIOPENV)
+				priority = ev.priority;
+			bool clicked = drawTask(priority, x, y, width, color);
 
-            // 2. Chama a sua função de desenho e guarda se foi clicado
-            bool clicked = drawTask(t->getPrioridade(), x, y, width, color);
-
-            // 3. Desenha o padrão (linhas) por cima do bloco para os estados suspensos
-            if (ev.state == Tarefa::TaskState::BlockedIO)
+             if (ev.state == Tarefa::TaskState::BlockedIO)
             {
-                // Padrão diagonal
                 for (unsigned int j = 0; j < width * 30; j += 6) {
                     DrawLine(x + j, y, x + std::min(j + 6, width * 30), y + 30, MAGENTA);
                 }
             }
             else if (ev.state == Tarefa::TaskState::BlockedMutex)
             {
-                // Padrão vertical
                 for (unsigned int j = 0; j < width * 30; j += 6) {
                     DrawLine(x + j, y, x + j, y + 30, RED);
                 }
             }
 
-            // 4. Executa a lógica de clique original
             if (clicked)
             {
                 selectedTask = const_cast<Tarefa*>(t);
@@ -478,19 +474,10 @@ void Interface::inputHandler()
 				scrollY = std::max(scrollY - (int)(mouseWheel * scrollSpeed),  (unsigned) 0);
 		}
 		
-		int maxScrollX = Execucao::getInstance()->getRelogio() * 30 - screenWidth;
-        int maxScrollY = (Execucao::getInstance()->getTarefas().size() 
-                                + Execucao::getInstance()->getFinalizadas().size()) * 30 - screenHeight;
-        std::cout << "MaxScrollX: " << maxScrollX << ", MaxScrollY: " << maxScrollY << std::endl;
-        scrollX = std::min(scrollX, (unsigned) std::max(maxScrollX, 0));
-        scrollY = std::min(scrollY, (unsigned) std::max(maxScrollY, 0));
-        std::cout << "ScrollX: " << scrollX << ", ScrollY: " << scrollY << std::endl;
-
 		int maxScrollX = Execucao::getInstance()->getRelogio() * 30 - screenWidth - 30;
 		int maxScrollY = (tasks.size()) * 30 - screenHeight - 160;
 		scrollX = std::min(scrollX, (unsigned) std::max(maxScrollX, 0));
 		scrollY = std::min(scrollY, (unsigned) std::max(maxScrollY, 0));
-		std::cout << "ScrollX: " << scrollX << ", ScrollY: " << scrollY << std::endl;
 	}
 }
 
@@ -626,14 +613,14 @@ void Interface::exportResults()
 		{
 			for (CPU::Event event : cpu->getEvents())
 			{
-				unsigned int x = 30 * event.clock - scrollX + (event.t ? -10 : 10);
-				unsigned int y = (screenHeight - 100) - 30 * (event.t ? event.t->getId() - 1 : cpu->getEvents()[event.id - 1].t->getId() - 1) + scrollY;
+				unsigned int x = 30 * event.clock - scrollX + (event.t != nullptr ? -10 : 10);
+				unsigned int y = (screenHeight - 100) - 30 * (event.t != nullptr ? event.t->getId() - 1 : cpu->getEvents()[event.id - 1].t->getId() - 1) + scrollY;
 				if (event.t == nullptr) x+= 15;
 				if (x + 30 < 20 || x > screenWidth - 10 || y + 30 < 90 || y > screenHeight - 70)
 					continue;
-				DrawCircle(x + 15, y + 15, 10, event.t ? GREEN : RED);
+				DrawCircle(x, y, 5, event.t ? GREEN : RED);
 				DrawCircleLines(x + 15, y + 15, 10, BLACK);
-				DrawText(TextFormat("%d", cpu->getId()), x, y, 10, DARKGRAY);
+				DrawText(TextFormat("%d", cpu->getId()), x, y, 10, BLACK);
 			}
 		}
 		

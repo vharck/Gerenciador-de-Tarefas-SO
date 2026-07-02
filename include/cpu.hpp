@@ -12,7 +12,7 @@ namespace ProjetoSO
 	public:
 	struct Event
 	{
-		int id;
+		unsigned int id;
 		int clock;
 		Tarefa *t;
 	};

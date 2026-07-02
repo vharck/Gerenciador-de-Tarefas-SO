@@ -29,6 +29,7 @@ namespace ProjetoSO
 				TaskState state;
 				unsigned int begin;
 				unsigned int end;
+				unsigned int priority = 0;
 			};
 
 		private:
