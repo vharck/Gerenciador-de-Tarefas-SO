@@ -31,10 +31,14 @@ void Tarefa::registrarEvento(TaskState state, unsigned int relogio)
 {
 	if (events.empty() || events.back().state != state) {
 		if (!events.empty())events.back().end = relogio;
+		if (!events.empty() && events.back().begin == events.back().end) events.pop_back();
 		Event newEvent;
 		newEvent.state = state;
 		newEvent.begin = relogio;
 		newEvent.end = relogio;
+		newEvent.priority = prioridade;
+		if (!events.empty() && state == TaskState::Ready)
+			newEvent.priority = events.back().state == TaskState::Ready ? events.back().priority + 1 : prioridade;
 		events.push_back(newEvent);
 	} else {
 		events.back().end = relogio;
